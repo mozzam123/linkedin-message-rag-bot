@@ -1,0 +1,4 @@
+venv/
+messages.csv
+.env
+__pycache__*
