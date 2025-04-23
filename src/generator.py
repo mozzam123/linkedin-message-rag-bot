@@ -1,72 +1,49 @@
-# src/generator.py
+# src/generator/generator.py
 
+import requests
 import os
-import groq  # 👉 Using Groq's SDK now
-from dotenv import load_dotenv
-
-load_dotenv()
 
 class Generator:
-    """
-    Generates an answer using Groq API models based on retrieved context.
-    """
-
-    def __init__(self, model_name="llama3-70b-8192", temperature=0.2):
+    def __init__(self, groq_api_key: str, model_name: str = "llama3-8b-8192"):
         """
-        Args:
-            model_name (str): Name of the Groq model to use.
-            temperature (float): Sampling temperature (0 = deterministic).
+        Initialize Generator with Groq API key and model name.
         """
+        self.api_key = groq_api_key
         self.model_name = model_name
-        self.temperature = temperature
-        self.client = groq.Groq(
-            api_key=os.getenv("GROQ_API_KEY")  # 🚨 Environment Variable: GROQ_API_KEY
-        )
+        self.endpoint = "https://api.groq.com/openai/v1/chat/completions"
 
-    def generate_answer(self, query: str, context: list[str]) -> str:
+    def generate_answer(self, context: list, query: str) -> str:
         """
-        Generates an answer based on the query and provided context.
-
-        Args:
-            query (str): The user's input question.
-            context (list[str]): Retrieved related texts/messages.
-
-        Returns:
-            str: Groq-generated answer.
+        Generate an answer based on retrieved context and original query.
         """
-        prompt = self._build_prompt(query, context)
+        # Build system prompt
+        system_prompt = "You are an intelligent assistant. Use the given context to answer the user's question accurately. If you don't know the answer, say you don't know."
 
-        response = self.client.chat.completions.create(
-            model=self.model_name,
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant summarizing and answering based on past LinkedIn conversations."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=self.temperature,
-            max_tokens=500,
-        )
+        # Combine context documents
+        context_text = "\n\n".join([doc['text'] for doc in context])
 
-        answer = response.choices[0].message.content
+        # Build messages
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Context:\n{context_text}\n\nQuestion: {query}"}
+        ]
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": self.model_name,
+            "messages": messages,
+            "temperature": 0.2
+        }
+
+        response = requests.post(self.endpoint, headers=headers, json=payload)
+
+        if response.status_code != 200:
+            raise Exception(f"Groq API Error: {response.status_code} {response.text}")
+
+        result = response.json()
+        answer = result['choices'][0]['message']['content'].strip()
         return answer
-
-    def _build_prompt(self, query: str, context: list[str]) -> str:
-        """
-        Builds the prompt that will be sent to Groq.
-
-        Args:
-            query (str): The user's input question.
-            context (list[str]): Retrieved texts.
-
-        Returns:
-            str: Final prompt.
-        """
-        joined_context = "\n\n".join(context)
-        prompt = f"""
-Here are some past LinkedIn conversations:
-{joined_context}
-
-Using only the information from these conversations, please answer the following question:
-
-{query}
-"""
-        return prompt.strip()

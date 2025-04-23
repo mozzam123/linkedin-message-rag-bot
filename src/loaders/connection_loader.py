@@ -1,22 +1,27 @@
 import pandas as pd
 
-def load_connections(csv_path: str) -> list:
-    df = pd.read_csv(csv_path)
-    documents = []
 
-    for idx, row in df.iterrows():
-        text = f"Connected with {row['First Name']} {row['Last Name']} on {row['Connected On']} who was as a {row['Position']} in {row['Company']} with Linkedin url: {row['URL']}"
+class ConnectionLoader:
+    def __init__(self, csv_path: str):
+        self.csv_path = csv_path
 
-        
-        metadata = {
-            "type": "connection",
-        }
+    def load(self):
+        df = pd.read_csv(self.csv_path)
+        documents = []
 
-        documents.append({
-            "text": text,
-            "metadata": metadata
-        })
+        for idx, row in df.iterrows():
 
-    return documents
+            connection_text = f"Connected with {row['First Name']} {row['Last Name']} on {row['Connected On']} who was as a {row['Position']} in {row['Company']} with Linkedin url: {row['URL']}"
+
+            doc = {
+                "id": f"connection-{idx}",
+                "text": connection_text
+            }
+
+            documents.append(doc)
+
+        return documents
+
+
 
 

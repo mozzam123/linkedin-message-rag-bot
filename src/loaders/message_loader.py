@@ -1,23 +1,31 @@
+# src/loaders/message_loader.py
+
 import pandas as pd
 
-def load_messages(csv_path: str) -> list:
-    df = pd.read_csv(csv_path)
-    documents = []
+class MessageLoader:
+    def __init__(self, csv_path: str):
+        self.csv_path = csv_path
 
-    for idx, row in df.iterrows():
-        # Create a clean text for message
-        text = f"From: {row['FROM']} To: {row['TO']} On: {row['DATE']}\n\nMessage:\n{row['CONTENT']}"
-        
-        metadata = {
-            "type": "message",
-            "conversation_id": row.get("CONVERSATION ID"),
-            "folder": row.get("FOLDER"),
-            "is_draft": row.get("IS MESSAGE DRAFT", "No")
-        }
+    def load(self) -> list:
+        """Load messages from a CSV file and return a list of document dictionaries."""
+        df = pd.read_csv(self.csv_path)
+        documents = []
 
-        documents.append({
-            "text": text,
-            "metadata": metadata
-        })
+        for idx, row in df.iterrows():
+            # Construct a clean message text
+            text = f"From: {row.get('FROM', '')} To: {row.get('TO', '')} On: {row.get('DATE', '')}\n\nMessage:\n{row.get('CONTENT', '')}"
 
-    return documents
+            metadata = {
+                "type": "message",  # Important: distinguish document types
+                "conversation_id": row.get("CONVERSATION ID", ""),
+                "folder": row.get("FOLDER", ""),
+                "is_draft": row.get("IS MESSAGE DRAFT", "No")
+            }
+
+            documents.append({
+                "id": f"message-{idx}",  # Optional: consistent IDs
+                "text": text,
+                "metadata": metadata
+            })
+
+        return documents

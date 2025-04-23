@@ -1,45 +1,62 @@
-# src/app.py
+# app.py
+import os
+from dotenv import load_dotenv
 
-from loader import load_linkedin_messages
+from loaders.unified_loader import UnifiedLoader
 from embedder import Embedder
-from vectorstore import VectorStore
 from retriever import Retriever
 from generator import Generator
 
-def main():
-    # Step 1: Load Messages
-    messages = load_linkedin_messages(csv_path="data/messages.csv")
-    print(f"✅ Loaded {len(messages)} messages.")
 
-    # Step 2: Embed Messages
-    embedder = Embedder()
-    embeddings = embedder.encode(messages)
-    print(f"✅ Embedded {len(embeddings)} messages.")
+load_dotenv()
 
-    # Step 3: Build Vector Store
-    embedding_size = len(embeddings[0])  # Get embedding dimension from the first embedding
-    vectorstore = VectorStore(embedding_size)
-    vectorstore.add(embeddings, messages)
-    print("✅ Vector store created.")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-    # Step 4: Setup Retriever and Generator
-    retriever = Retriever(embedder, vectorstore)
-    generator = Generator()
+# ======== Step 1: Load your LinkedIn messages ========
 
-    print("\n🤖 RAG Bot is ready! Ask questions about your LinkedIn messages.\n")
+messages_csv = "/home/jidnyasa/Vim/Python/rag_linkedin_bot/data/messages.csv"
+connections_csv = "/home/jidnyasa/Vim/Python/rag_linkedin_bot/data/connections.csv"
+
+loader = UnifiedLoader(messages_csv, connections_csv)
+documents = loader.load()
+
+print(f"Loaded {len(documents)} documents.")
+
+# ======== Step 2: Embed documents into FAISS ========
+embedder = Embedder()
+embedder.embed_documents(documents)
+
+print(f"Embedded {len(documents)} documents into FAISS.")
+
+# ======== Step 3: Initialize Retriever ========
+retriever = Retriever(embedder)
+
+# ======== Step 4: Initialize Generator ========
+generator = Generator(groq_api_key=GROQ_API_KEY)
+
+# ======== Step 5: Define a simple query-answering function ========
+def answer_question(user_query: str, top_k: int = 5):
+    """
+    Answer the user's question using RAG pipeline.
+    """
+    # Retrieve top relevant documents
+    relevant_docs = retriever.retrieve(user_query, top_k=top_k)
+    
+    # Generate final answer
+    final_answer = generator.generate_answer(relevant_docs, user_query)
+    
+    return final_answer
+
+# ======== Step 6: Interactive loop ========
+if __name__ == "__main__":
+    print("\n🔍 Welcome to LinkedIn Message Assistant (RAG)")
+    print("Type 'exit' to quit.\n")
+    
     while True:
-        query = input("❓ Enter your question (or type 'exit' to quit): ").strip()
+        query = input("📝 Your question: ").strip()
         if query.lower() == "exit":
             print("👋 Exiting. Goodbye!")
             break
-
-        # Step 5: Retrieve Relevant Messages
-        retrieved_context = retriever.retrieve(query)
-        print(f"🔍 Retrieved {len(retrieved_context)} relevant messages.")
-
-        # Step 6: Generate Answer
-        answer = generator.generate_answer(query, retrieved_context)
-        print(f"\n💬 Answer: {answer}\n")
-
-if __name__ == "__main__":
-    main()
+        
+        answer = answer_question(query)
+        print(f"\n💬 Answer:\n{answer}\n")
