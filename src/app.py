@@ -6,6 +6,7 @@ from loaders.unified_loader import UnifiedLoader
 from embedder import Embedder
 from retriever import Retriever
 from generator import Generator
+from utils import extract_names_from_answer
 
 
 load_dotenv()
@@ -65,12 +66,15 @@ if __name__ == "__main__":
 
         # 🆕 Attribution Part
         print("\n🔗 Sources:")
+        mentioned_names = extract_names_from_answer(answer)
         for doc in sources:
             meta = doc.get("metadata", {})
             if meta.get("type") == "message":
                 print(f"- Message: Conversation ID {meta.get('conversation_id')} | Folder: {meta.get('folder')}")
             elif meta.get("type") == "connection":
-                print(f"- Connection: {meta.get('full_name')} | Connected on: {meta.get('connected_on')}")
+                full_name = meta.get("full_name")
+                if full_name and full_name in mentioned_names:
+                    print(f"- Connection: {full_name} | Connected on: {meta.get('connected_on')}")  
             else:
                 print("- Unknown source type")
 
