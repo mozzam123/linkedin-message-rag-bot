@@ -57,6 +57,20 @@ if __name__ == "__main__":
         if query.lower() == "exit":
             print("👋 Exiting. Goodbye!")
             break
-        
-        answer = answer_question(query)
+
+
+        relevant_docs = retriever.retrieve(query)
+        answer, sources = generator.generate_answer(query, relevant_docs)
         print(f"\n💬 Answer:\n{answer}\n")
+
+        # 🆕 Attribution Part
+        print("\n🔗 Sources:")
+        for doc in sources:
+            meta = doc.get("metadata", {})
+            if meta.get("type") == "message":
+                print(f"- Message: Conversation ID {meta.get('conversation_id')} | Folder: {meta.get('folder')}")
+            elif meta.get("type") == "connection":
+                print(f"- Connection: {meta.get('full_name')} | Connected on: {meta.get('connected_on')}")
+            else:
+                print("- Unknown source type")
+

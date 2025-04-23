@@ -12,21 +12,19 @@ class Generator:
         self.model_name = model_name
         self.endpoint = "https://api.groq.com/openai/v1/chat/completions"
 
-    def generate_answer(self, context: list, query: str) -> str:
-        """
-        Generate an answer based on retrieved context and original query.
-        """
-        # Build system prompt
-        system_prompt = "You are an intelligent assistant. Use the given context to answer the user's question accurately. If you don't know the answer, say you don't know."
+    def generate_answer(self, question: str, documents: list) -> str:
 
-        # Combine context documents
-        context_text = "\n\n".join([doc['text'] for doc in context])
+        context = "\n\n".join(doc["text"] for doc in documents)
 
-        # Build messages
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Context:\n{context_text}\n\nQuestion: {query}"}
-        ]
+        prompt = f"""You are a helpful assistant. Use the below context to answer the question.
+
+        Context:
+        {context}
+
+        Question:
+        {question}
+
+            Answer:"""
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -35,15 +33,16 @@ class Generator:
 
         payload = {
             "model": self.model_name,
-            "messages": messages,
+            "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.2
         }
 
+        
         response = requests.post(self.endpoint, headers=headers, json=payload)
-
         if response.status_code != 200:
             raise Exception(f"Groq API Error: {response.status_code} {response.text}")
 
         result = response.json()
         answer = result['choices'][0]['message']['content'].strip()
-        return answer
+
+        return answer, documents  # ⬅️ now returns both answer + sources

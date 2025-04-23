@@ -1,21 +1,44 @@
-from loaders.message_loader import MessageLoader
-from loaders.connection_loader import ConnectionLoader
+# src/loaders/unified_loader.py
 
+import pandas as pd
 
 class UnifiedLoader:
-    def __init__(self, messages_csv_path: str, connections_csv_path: str):
-        self.messages_csv_path = messages_csv_path
-        self.connections_csv_path = connections_csv_path
+    def __init__(self, messages_csv: str, connections_csv: str):
+        self.messages_csv = messages_csv
+        self.connections_csv = connections_csv
 
-    def load(self):
-        message_loader = MessageLoader(self.messages_csv_path)
-        messages = message_loader.load()
+    def load(self) -> list:
+        documents = []
 
-        connection_loader = ConnectionLoader(self.connections_csv_path)
-        connections = connection_loader.load()
+        # Load messages
+        messages_df = pd.read_csv(self.messages_csv)
+        for _, row in messages_df.iterrows():
+            text = f"From: {row['FROM']} To: {row['TO']} On: {row['DATE']}\n\nMessage:\n{row['CONTENT']}"
+            metadata = {
+                "type": "message",
+                "conversation_id": row.get("CONVERSATION ID"),
+                "folder": row.get("FOLDER"),
+                "is_draft": row.get("IS MESSAGE DRAFT", "No")
+            }
+            documents.append({
+                "text": text,
+                "metadata": metadata
+            })
 
-        # Combine both datasets
-        all_documents = messages + connections
-        return all_documents
-    
-    
+        # Load connections
+        connections_df = pd.read_csv(self.connections_csv)
+        for _, row in connections_df.iterrows():
+            full_name = f"{row['First Name']} {row['Last Name']}".strip()
+            text = f"Connection: {full_name}\nPosition: {row['Position']}\nConnected on: {row['Connected On']}"
+            metadata = {
+                "type": "connection",
+                "full_name": full_name,
+                "position": row.get("Position"),
+                "connected_on": row.get("Connected On")
+            }
+            documents.append({
+                "text": text,
+                "metadata": metadata
+            })
+
+        return documents
