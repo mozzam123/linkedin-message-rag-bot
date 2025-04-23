@@ -1,33 +1,18 @@
-# src/retriever.py
-
-from embedder import Embedder
-from vectorstore import VectorStore
+# src/retrieval/retriever.py
 
 class Retriever:
-    """
-    Retrieves relevant texts from the vector store based on a query.
-    """
-
-    def __init__(self, embedder: Embedder, vectorstore: VectorStore):
+    def __init__(self, embedder):
         """
-        Args:
-            embedder (Embedder): An instance of the Embedder class.
-            vectorstore (VectorStore): An instance of the VectorStore class.
+        Initialize the retriever with an embedder instance.
         """
         self.embedder = embedder
-        self.vectorstore = vectorstore
 
     def retrieve(self, query: str, top_k: int = 5):
         """
-        Retrieves the top_k most relevant texts for a given query.
-
-        Args:
-            query (str): The user's question or input text.
-            top_k (int): Number of top results to return.
-
-        Returns:
-            List[str]: List of top matching text documents.
+        Retrieve top_k most relevant documents for the given query.
         """
-        query_embedding = self.embedder.encode([query])[0]
-        relevant_texts = self.vectorstore.search(query_embedding, top_k)
-        return relevant_texts
+        if self.embedder.index is None:
+            raise ValueError("No FAISS index found. Please embed documents first.")
+        
+        results = self.embedder.search(query, top_k)
+        return results
